@@ -22,7 +22,6 @@ export function protectData(models, data: {[model: string]: {[field: string]: bo
   }
   
   function checkObject(model, objectData){
-    console.log("Checking:", model)
     // if its true just filter and return
     if(objectData === true){
       return filterModel(model);
