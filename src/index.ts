@@ -16,53 +16,52 @@ export function protectData(models, data: {[model: string]: {[field: string]: bo
       if(field.kind === "object"){
         continue;
       }
-      selectData[field.name] = !data[field.name] ?? true;
+      selectData[field.name] = (!data[model][field.name]) ?? true;
     }
     return selectData;
   }
   
   function checkObject(model, objectData){
+    console.log("Checking:", model)
     // if its true just filter and return
     if(objectData === true){
       return filterModel(model);
     }
 
+    if(data[model] !== undefined && objectData.select === undefined){
+      objectData.select = filterModel(model);
+    }
+
     // Else we need to check for select/ include properties
-    for(const propertyName of ["include", "select"]){
+    for(const propertyName of ["select", "include"]){
       if(objectData[propertyName] !== undefined){
         const modelFields = models.find(a => a.name === model)?.fields ?? [];
   
         // Loop through each field inside the select
         for(const field of Object.keys(objectData[propertyName])){
           const selectField = modelFields.find(a => a.name === field);
-  
+
           // If the field is an object (relation)
           if(selectField?.kind === "object"){
-  
-            // If its not a filtered model, skip it
-            if(data[selectField.type] === undefined){
+            // If its a filtered model, check it
+            if(data[selectField.type] !== undefined){
+              objectData.select[field] = checkObject(selectField.type, objectData[propertyName][field]);
               continue;
             }
-  
-            objectData.select[field] = checkObject(selectField.type, objectData[propertyName][field]);
           };
+          objectData.select[field] = objectData[propertyName][field];
         }
       }
+
     }
-    objectData.include = undefined;
+    if(objectData.include){
+      delete objectData.include;
+    }
     return objectData;
   }
 
   return async (params, next)=>{
-    if(params.action.includes("find")){
-
-      // If primary model needs to be filtered
-      if(data[params.model] !== undefined && params.args.select === undefined){
-        params.args.select = filterModel(params.model)
-        // Don't check select
-        return await next(params)
-      }
-
+    if(params.action.includes("find") && (params.args.select !== undefined || data[params.model] !== undefined)){
       params.args = checkObject(params.model, params.args);
     }
 
