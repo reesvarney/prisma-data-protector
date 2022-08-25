@@ -22,7 +22,3 @@ db.$use(protectData(Prisma.dmmf.datamodel.models, {
 
 ## Supported Queries
 Currently the middleware supports `findUnique`, `findMany` and `findFirst`.
-
-## Todo
- - Deeply nested includes
- - Filter relations included through the `select` parameter
