@@ -8,44 +8,64 @@
  * @returns Prisma Middleware
  */
 export function protectData(models, data: {[model: string]: {[field: string]: boolean}}, {warn=true}){
-
-  function filterModel(model: string, exclude: {[field: string]: boolean}){
-    if(warn) console.warn(`⚠️ Warning: Prisma query on "${model}" model is missing a select parameter, the following sensitive fields are being excluded:`, exclude);
+  function filterModel(model: string){
+    if(warn) console.warn(`⚠️ Warning: Prisma query on "${model}" model is missing a select parameter, the following sensitive fields are being excluded:`, data[model]);
     const fields = models.find(a => a.name === model)?.fields ?? [];
     const selectData: {[field: string]: boolean} = {};
     for(const field of fields){
       if(field.kind === "object"){
         continue;
       }
-      selectData[field.name] = !exclude[field.name] ?? true;
+      selectData[field.name] = !data[field.name] ?? true;
     }
     return selectData;
   }
   
-  return async (params, next)=>{
-    if(params.action.includes("find")){
-      // If primary model needs to be filtered
-      if(data[params.model] !== undefined && params.args.select === undefined){
-        params.args.select = filterModel(params.model, data[params.model])
-      }
-      // todo - if select already exists, detect if field in select is a object or scalar value
-      // if it is an object (relation) value, check if it needs to be filtered
+  function checkObject(model, objectData){
+    // if its true just filter and return
+    if(objectData === true){
+      return filterModel(model);
+    }
 
-      // if included model needs to be filtered
-      if(params.args.include !== undefined){
-        if(params.args.select === undefined){
-          params.args.select = filterModel(params.model, {});
-        }
-        for(const model of Object.keys(params.args.include)){
-          if(data[model] === undefined || params.args.include[model].select !== undefined || model[0] === "_"){
-            params.args.select[model] = params.args.include[model];
-            continue;
-          }
-          params.args.select[model] = filterModel(model, data[model]);
+    // Else we need to check for select/ include properties
+    for(const propertyName of ["include", "select"]){
+      if(objectData[propertyName] !== undefined){
+        const modelFields = models.find(a => a.name === model)?.fields ?? [];
+  
+        // Loop through each field inside the select
+        for(const field of Object.keys(objectData[propertyName])){
+          const selectField = modelFields.find(a => a.name === field);
+  
+          // If the field is an object (relation)
+          if(selectField?.kind === "object"){
+  
+            // If its not a filtered model, skip it
+            if(data[selectField.type] === undefined){
+              continue;
+            }
+  
+            objectData.select[field] = checkObject(selectField.type, objectData[propertyName][field]);
+          };
         }
       }
     }
-    params.args.include = undefined;
+    objectData.include = undefined;
+    return objectData;
+  }
+
+  return async (params, next)=>{
+    if(params.action.includes("find")){
+
+      // If primary model needs to be filtered
+      if(data[params.model] !== undefined && params.args.select === undefined){
+        params.args.select = filterModel(params.model)
+        // Don't check select
+        return await next(params)
+      }
+
+      params.args = checkObject(params.model, params.args);
+    }
+
     return await next(params)
   }
 }
