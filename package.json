@@ -11,5 +11,6 @@
   "license": "ISC",
   "devDependencies": {
     "typescript": "^4.7.4"
-  }
+  },
+  "repository": "https://github.com/reesvarney/prisma-data-protector"
 }
