@@ -10,7 +10,7 @@
 export function protectData(models, data: {[model: string]: {[field: string]: boolean}}, {warn=true}){
 
   function filterModel(model: string, exclude: {[field: string]: boolean}){
-    if(warn) console.warn(`WARNING: PRISMA QUERY ON MODEL "${model}" MISSING SELECT, THE FOLLOWING FIELDS ARE BEING HIDDEN:`, exclude);
+    if(warn) console.warn(`⚠️ Warning: Prisma query on "${model}" model is missing a select parameter, the following sensitive fields are being excluded:`, exclude);
     const fields = models.find(a => a.name === model)?.fields ?? [];
     const selectData: {[field: string]: boolean} = {};
     for(const field of fields){
