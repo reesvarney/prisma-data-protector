@@ -24,7 +24,7 @@ export function protectData(models, data: {[model: string]: {[field: string]: bo
   function checkObject(model, objectData){
     // if its true just filter and return
     if(objectData === true){
-      return filterModel(model);
+      return {select: filterModel(model)};
     }
 
     if(data[model] !== undefined && objectData.select === undefined){
